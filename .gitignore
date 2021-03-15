@@ -10,6 +10,7 @@ bin/
 mvnw
 mvnw.cmd
 notifier.iml
+test/
 
 # Compiled class file
 *.class
