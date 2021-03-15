@@ -1,3 +1,16 @@
+application-local.properties
+.DS_Store
+.classpath
+.project
+.project
+.settings/
+.idea/
+.factorypath
+bin/
+mvnw
+mvnw.cmd
+notifier.iml
+
 # Compiled class file
 *.class
 
