@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>edu.neu.csye7125</groupId>
 	<artifactId>notifier</artifactId>
-	<version>0.0.1</version>
+	<version>0.0.1-SNAPSHOT</version>
 	<name>notifier</name>
 	<description>Notifier Webapp</description>
 	<properties>
@@ -80,6 +80,7 @@
 				</configuration>
 			</plugin>
 		</plugins>
+		<finalName>notifier</finalName>
 	</build>
 
 </project>
