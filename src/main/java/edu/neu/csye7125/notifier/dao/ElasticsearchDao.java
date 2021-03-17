@@ -1,7 +1,10 @@
 package edu.neu.csye7125.notifier.dao;
 
+import java.util.List;
+import java.util.Map;
+
 public interface ElasticsearchDao {
 
-    String search(String category, String keyword);
+    List<Map<String, String>> search(String category, String keyword);
 
 }
