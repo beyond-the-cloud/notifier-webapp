@@ -32,7 +32,7 @@ public class AlertScanner {
     @Autowired
     private EmailService emailService;
 
-    @Scheduled(fixedDelay = 1000 * 60 * 5)  // delay in millisecond, total is 5 (1000 * 60 * 5) minutes
+    @Scheduled(fixedDelayString = "${notifier.scanPeriod}")
     public void scheduleAlertScanner() {
 
         Timestamp current = new Timestamp(System.currentTimeMillis());
