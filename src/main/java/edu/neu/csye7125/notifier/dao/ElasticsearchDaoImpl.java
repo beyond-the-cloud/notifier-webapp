@@ -15,6 +15,11 @@ import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
 
 @Repository
@@ -22,26 +27,29 @@ import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
 public class ElasticsearchDaoImpl implements ElasticsearchDao {
 
     @Autowired
-    @Qualifier("elasticsearchClient")
-    private RestHighLevelClient client;
-
-    @Autowired
     @Qualifier("elasticsearchTemplate")
     private ElasticsearchRestTemplate elasticsearchRestTemplate;
 
     @Override
-    public String search(String category, String keyword) {
+    public List<Map<String, String>> search(String category, String keyword) {
+        List<Map<String, String>> result = new ArrayList<>();
+
         NativeSearchQuery searchQuery = new NativeSearchQueryBuilder()
                 .withQuery(matchQuery("title", keyword).operator(Operator.AND))
                 .build();
+
         SearchHits<Hit> hits = elasticsearchRestTemplate.search(
-                searchQuery, Hit.class, IndexCoordinates.of(category + "_stories"));
-        for (SearchHit hit: hits) {
-            log.info(hit.getContent().toString());
-            // get user email by user id
-            // call email sending function
+                searchQuery, Hit.class, IndexCoordinates.of(category + "stories"));
+
+        for (SearchHit searchHit: hits) {
+            Hit hit = (Hit) searchHit.getContent();
+            log.info(hit.toString());
+            Map<String, String> entry = new HashMap<>();
+            entry.put("id", hit.getId());
+            entry.put("title", hit.getTitle());
+            result.add(entry);
         }
-        return null;
+        return result;
     }
 
     @Data
@@ -50,4 +58,5 @@ public class ElasticsearchDaoImpl implements ElasticsearchDao {
         private String id;
         private String title;
     }
+
 }
