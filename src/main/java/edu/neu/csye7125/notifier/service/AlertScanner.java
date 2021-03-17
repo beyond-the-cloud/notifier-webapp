@@ -1,6 +1,7 @@
 package edu.neu.csye7125.notifier.service;
 
 import edu.neu.csye7125.notifier.dao.ElasticsearchDao;
+import edu.neu.csye7125.notifier.entity.EmailRecord;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,19 +26,65 @@ public class AlertScanner {
     @Autowired
     private ElasticsearchDao elasticsearchDao;
 
-    @Scheduled(fixedDelay = 1000 * 10)  // delay in millisecond, total is 5 (1000 * 60 * 5) minutes
-    public void scheduleFixedDelayTask() {
-        log.info("Fixed delay task - " + System.currentTimeMillis() / 1000);
+    @Autowired
+    private EmailRecordService emailRecordService;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Scheduled(fixedDelay = 1000 * 60 * 5)  // delay in millisecond, total is 5 (1000 * 60 * 5) minutes
+    public void scheduleAlertScanner() {
+
         Timestamp current = new Timestamp(System.currentTimeMillis());
-        String query = "SELECT category, keyword, userId FROM alert WHERE expiry >= '" + current + "'";
-        log.info(query);
-        log.info("Category, Keyword, UserId: {}", mainJdbcTemplate.queryForList(query));
-        List<Map<String, Object>> pairs = mainJdbcTemplate.queryForList(query);
-        for (Map pair: pairs) {
-            elasticsearchDao.search(pair.get("category").toString().toLowerCase(),
-                    pair.get("keyword").toString().toLowerCase());
+
+        log.info("Current Timestamp - {}", System.currentTimeMillis() / 1000);
+
+        String queryGetActiveAlerts = "SELECT category, keyword, userId FROM alert WHERE expiry >= " +
+                "'" + current + "'";
+
+        log.info(queryGetActiveAlerts);
+        log.info("Category, Keyword, UserId: {}", mainJdbcTemplate.queryForList(queryGetActiveAlerts));
+
+        List<Map<String, Object>> activeAlerts = mainJdbcTemplate.queryForList(queryGetActiveAlerts);
+
+        String queryGetUserEmailByUserId = "SELECT emailAddress FROM user WHERE id = ";
+
+        for (Map alert: activeAlerts) {
+            String category = alert.get("category").toString().toLowerCase();
+            String keyword = alert.get("keyword").toString().toLowerCase();
+            String userId = alert.get("userId").toString();
+
+            List<Map<String, String>> result = elasticsearchDao.search(category, keyword);
+
+            String email = mainJdbcTemplate.queryForObject(
+                    queryGetUserEmailByUserId + "'" + userId + "'", String.class);
+
+            log.info(result.toString());
+
+            for (Map<String, String> entry: result) {
+                String id = entry.get("id");
+                String title = entry.get("title");
+
+                log.info("id: {}, title: {}", id, title);
+
+                try {
+                    EmailRecord existingEmailRecord = emailRecordService.getByUserIdAndStoryId(userId, id);
+                    if (existingEmailRecord == null) {
+                        emailService.send(email, id, title);
+                        EmailRecord emailRecord = EmailRecord.builder()
+                                .emailAddress(email)
+                                .userId(userId)
+                                .storyId(id)
+                                .storyTitle(title)
+                                .sentAt(new Timestamp(System.currentTimeMillis()))
+                                .build();
+                        emailRecordService.save(emailRecord);
+                    }
+                } catch (Exception e) {
+                    log.error(e.getMessage());
+                }
+            }
         }
-        log.info("Count: {}", mainJdbcTemplate.queryForObject("SELECT COUNT(*) FROM Alert", Long.class));
     }
 
 }
