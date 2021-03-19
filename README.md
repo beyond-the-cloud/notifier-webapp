@@ -52,3 +52,5 @@ Notifier Web App GitHub Repository Setup
 7. Use AWS SES to send email. AWS creds should be provided to the application using Kubernetes Secret.
 
     1. You may configure SES in your ROOT AWS account and use in DEV and PROD accounts.
+
+    
