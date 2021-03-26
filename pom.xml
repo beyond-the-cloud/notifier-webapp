@@ -76,6 +76,42 @@
 			<artifactId>aws-java-sdk-ses</artifactId>
 			<version>1.11.728</version>
 		</dependency>
+		<!-- Metrics Monitoring -->
+		<dependency>
+			<groupId>org.springframework.metrics</groupId>
+			<artifactId>spring-metrics</artifactId>
+			<version>0.5.1.RELEASE</version>
+		</dependency>
+		<!-- Micrometer Prometheus registry  -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
+		<!-- Prometheus Clients -->
+		<!-- The client -->
+		<dependency>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient</artifactId>
+			<version>0.10.0</version>
+		</dependency>
+		<!-- Hotspot JVM metrics-->
+		<dependency>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient_hotspot</artifactId>
+			<version>0.10.0</version>
+		</dependency>
+		<!-- Exposition HTTPServer-->
+		<dependency>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient_httpserver</artifactId>
+			<version>0.10.0</version>
+		</dependency>
+		<!-- Pushgateway exposition-->
+		<dependency>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient_pushgateway</artifactId>
+			<version>0.10.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>
