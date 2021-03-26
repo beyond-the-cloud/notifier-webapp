@@ -1,5 +1,7 @@
 package edu.neu.csye7125.notifier.dao;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
 
@@ -30,8 +33,14 @@ public class ElasticsearchDaoImpl implements ElasticsearchDao {
     @Qualifier("elasticsearchTemplate")
     private ElasticsearchRestTemplate elasticsearchRestTemplate;
 
+    @Autowired
+    private MeterRegistry meterRegistry;
+
     @Override
     public List<Map<String, String>> search(String category, String keyword) {
+        Timer timer = meterRegistry.timer("elasticsearch.search");
+        Long start = System.currentTimeMillis();
+
         List<Map<String, String>> result = new ArrayList<>();
 
         NativeSearchQuery searchQuery = new NativeSearchQueryBuilder()
@@ -40,6 +49,9 @@ public class ElasticsearchDaoImpl implements ElasticsearchDao {
 
         SearchHits<Hit> hits = elasticsearchRestTemplate.search(
                 searchQuery, Hit.class, IndexCoordinates.of(category + "stories"));
+
+        Long end = System.currentTimeMillis();
+        timer.record(end - start, TimeUnit.MILLISECONDS);
 
         for (SearchHit searchHit: hits) {
             Hit hit = (Hit) searchHit.getContent();

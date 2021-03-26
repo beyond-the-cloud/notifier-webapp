@@ -2,10 +2,14 @@ package edu.neu.csye7125.notifier.service;
 
 import edu.neu.csye7125.notifier.dao.ElasticsearchDao;
 import edu.neu.csye7125.notifier.entity.EmailRecord;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.metrics.annotation.Timed;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -13,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @EnableScheduling
@@ -32,20 +37,31 @@ public class AlertScanner {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private MeterRegistry meterRegistry;
+
     @Scheduled(fixedDelayString = "${notifier.scanPeriod}")
     public void scheduleAlertScanner() {
+        log.info("Start Scanning Active Alerts");
+
+        // initiate counters
+        Counter totalCounter = meterRegistry.counter("alert.scanner.total");
+        Counter successCounter = meterRegistry.counter("alert.scanner.success");
+        // increment the total counter
+        totalCounter.increment();
 
         Timestamp current = new Timestamp(System.currentTimeMillis());
-
-        log.info("Current Timestamp - {}", System.currentTimeMillis() / 1000);
-
         String queryGetActiveAlerts = "SELECT category, keyword, userId FROM alert WHERE expiry >= " +
                 "'" + current + "'";
 
-        log.info(queryGetActiveAlerts);
-        log.info("Category, Keyword, UserId: {}", mainJdbcTemplate.queryForList(queryGetActiveAlerts));
+        Timer timer = meterRegistry.timer("db.getActiveAlerts");
+        Long start = System.currentTimeMillis();
 
+        // get active alerts from main database's alert table
         List<Map<String, Object>> activeAlerts = mainJdbcTemplate.queryForList(queryGetActiveAlerts);
+
+        Long end = System.currentTimeMillis();
+        timer.record(end - start, TimeUnit.MILLISECONDS);
 
         String queryGetUserEmailByUserId = "SELECT emailAddress FROM user WHERE id = ";
 
@@ -54,23 +70,34 @@ public class AlertScanner {
             String keyword = alert.get("keyword").toString().toLowerCase();
             String userId = alert.get("userId").toString();
 
-            List<Map<String, String>> result = elasticsearchDao.search(category, keyword);
+            // get all matched hacker news by category and keyword from elasticsearch
+            List<Map<String, String>> matched = elasticsearchDao.search(category, keyword);
 
+            timer = meterRegistry.timer("db.getUserEmailByUserId");
+            start = System.currentTimeMillis();
+
+            // get user email by user id from main database's user table
             String email = mainJdbcTemplate.queryForObject(
                     queryGetUserEmailByUserId + "'" + userId + "'", String.class);
 
-            log.info(result.toString());
+            end = System.currentTimeMillis();
+            timer.record(end - start, TimeUnit.MILLISECONDS);
 
-            for (Map<String, String> entry: result) {
+            // iterate through all matched entries
+            for (Map<String, String> entry: matched) {
                 String id = entry.get("id");
                 String title = entry.get("title");
 
-                log.info("id: {}, title: {}", id, title);
+                log.info("id: " + id + ", title: " + title);
 
                 try {
+                    // check if already sent email
                     EmailRecord existingEmailRecord = emailRecordService.getByUserIdAndStoryId(userId, id);
+
                     if (existingEmailRecord == null) {
+                        // send email
                         emailService.send(email, id, title);
+                        // save a email record
                         EmailRecord emailRecord = EmailRecord.builder()
                                 .emailAddress(email)
                                 .userId(userId)
@@ -84,6 +111,10 @@ public class AlertScanner {
                     log.error(e.getMessage());
                 }
             }
+
+            // increment the success counter
+            successCounter.increment();
+            log.info("Finish Scanning Active Alerts");
         }
     }
 

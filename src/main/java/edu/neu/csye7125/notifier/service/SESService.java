@@ -2,9 +2,13 @@ package edu.neu.csye7125.notifier.service;
 
 import com.amazonaws.services.simpleemail.AmazonSimpleEmailService;
 import com.amazonaws.services.simpleemail.model.*;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -21,8 +25,14 @@ public class SESService implements EmailService {
     @Autowired
     private AmazonSimpleEmailService client;
 
+    @Autowired
+    private MeterRegistry meterRegistry;
+
     @Override
     public void send(String to, String id, String title) {
+        Timer timer = meterRegistry.timer("sesService.send");
+        Long start = System.currentTimeMillis();
+
         SendEmailRequest request = new SendEmailRequest()
                 .withDestination(
                         new Destination().withToAddresses(to))
@@ -40,6 +50,9 @@ public class SESService implements EmailService {
         log.info("Email Sending...");
         client.sendEmail(request);
         log.info("Email Sent!");
+
+        Long end = System.currentTimeMillis();
+        timer.record(end - start, TimeUnit.MILLISECONDS);
     }
 
 }
